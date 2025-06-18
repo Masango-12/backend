@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Test Backend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            color: #333;
+        }
+        h1 {
+            color: #4285f4;
+            text-align: center;
+        }
+        .status {
+            background-color: #e8f0fe;
+            border-left: 4px solid #4285f4;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .endpoint {
+            background-color: #f8f9fa;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .method {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 0.8em;
+        }
+        .get { background-color: #e6f4ea; color: #0d652d; }
+        .post { background-color: #e8f0fe; color: #174ea6; }
+        .put { background-color: #fef7e0; color: #a50e0e; }
+        .delete { background-color: #fce8e6; color: #a50e0e; }
+    </style>
+</head>
+<body>
+    <h1>Speed Test Backend API</h1>
+    
+    <div class="status">
+        <h2>API Status: <span id="status">Checking...</span></h2>
+        <p>Last checked: <span id="last-checked">-</span></p>
+    </div>
+
+    <h2>Available Endpoints</h2>
+    
+    <div class="endpoint">
+        <div class="method get">GET</div>
+        <strong>/api/health</strong> - Check API health status
+    </div>
+    
+    <div class="endpoint">
+        <div class="method post">POST</div>
+        <strong>/api/tests</strong> - Save speed test result
+    </div>
+    
+    <div class="endpoint">
+        <div class="method get">GET</div>
+        <strong>/api/tests</strong> - Get all test results (optional: ?userId=USER_ID)
+    </div>
+    
+    <div class="endpoint">
+        <div class="method get">GET</div>
+        <strong>/api/privacy-settings/:userId</strong> - Get user's privacy settings
+    </div>
+    
+    <div class="endpoint">
+        <div class="method put">PUT</div>
+        <strong>/api/privacy-settings/:userId</strong> - Update user's privacy settings
+    </div>
+
+    <script>
+        // Check API status
+        async function checkApiStatus() {
+            const statusElement = document.getElementById('status');
+            const lastCheckedElement = document.getElementById('last-checked');
+            
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusElement.textContent = '✅ Online';
+                    statusElement.style.color = '#0d652d';
+                } else {
+                    statusElement.textContent = '❌ Error';
+                    statusElement.style.color = '#d93025';
+                }
+                
+                lastCheckedElement.textContent = new Date().toLocaleString();
+            } catch (error) {
+                statusElement.textContent = '❌ Offline';
+                statusElement.style.color = '#d93025';
+                lastCheckedElement.textContent = new Date().toLocaleString();
+            }
+        }
+
+        
+        // Check status on page load
+        checkApiStatus();
+        
+        // Check status every 30 seconds
+        setInterval(checkApiStatus, 30000);
+    </script>
+</body>
+</html>
