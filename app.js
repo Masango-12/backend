@@ -11,7 +11,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI ;
+const MONGODB_URI = process.env.MONGODB_URI;
 mongoose.connect(MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
@@ -22,7 +22,7 @@ mongoose.connect(MONGODB_URI, {
     process.exit(1);
 });
 
-// Test Schema and Model
+// Schemas & Models
 const testSchema = new mongoose.Schema({
     userId: { type: String, required: true },
     downloadSpeed: { type: Number, required: true },
@@ -47,9 +47,6 @@ const testSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-const Test = mongoose.model('Test', testSchema);
-
-// Feedback Schema and Model
 const feedbackSchema = new mongoose.Schema({
     issueType: { type: String, required: true },
     customIssue: { type: String },
@@ -59,10 +56,19 @@ const feedbackSchema = new mongoose.Schema({
         longitude: Number,
         address: String,
     },
-    screenshot: { type: String }, // base64 string
+    screenshot: { type: String },
 }, { timestamps: true });
 
+const privacySchema = new mongoose.Schema({
+    userId: { type: String, required: true, unique: true },
+    backgroundMonitoring: { type: Boolean, default: true },
+    shareAnonymousData: { type: Boolean, default: false },
+    saveLocationHistory: { type: Boolean, default: true },
+}, { timestamps: true });
+
+const Test = mongoose.model('Test', testSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
+const PrivacySettings = mongoose.model('PrivacySettings', privacySchema);
 
 // Routes
 app.get('/', (req, res) => res.send('Hello from backend!'));
@@ -71,19 +77,12 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date() });
 });
 
-// Save a new test result
+// POST /api/tests
 app.post('/api/tests', async (req, res, next) => {
     try {
         const {
-            userId,
-            downloadSpeed,
-            uploadSpeed,
-            ping,
-            jitter,
-            carrier,
-            networkType,
-            testedAt,
-            location
+            userId, downloadSpeed, uploadSpeed, ping,
+            jitter, carrier, networkType, testedAt, location
         } = req.body;
 
         if (!userId || downloadSpeed == null || uploadSpeed == null || ping == null || jitter == null || !carrier || !networkType || !testedAt) {
@@ -91,14 +90,8 @@ app.post('/api/tests', async (req, res, next) => {
         }
 
         const test = new Test({
-            userId,
-            downloadSpeed,
-            uploadSpeed,
-            ping,
-            jitter,
-            carrier,
-            networkType,
-            testedAt,
+            userId, downloadSpeed, uploadSpeed, ping,
+            jitter, carrier, networkType, testedAt,
             location: location || { type: 'Point', coordinates: [0, 0] }
         });
 
@@ -109,7 +102,7 @@ app.post('/api/tests', async (req, res, next) => {
     }
 });
 
-// Get test results (optionally filtered by userId)
+// GET /api/tests
 app.get('/api/tests', async (req, res, next) => {
     try {
         const { userId } = req.query;
@@ -121,16 +114,10 @@ app.get('/api/tests', async (req, res, next) => {
     }
 });
 
-// Feedback submission route
+// POST /api/feedback
 app.post('/api/feedback', async (req, res, next) => {
     try {
-        const {
-            issueType,
-            customIssue,
-            comments,
-            location,
-            screenshot,
-        } = req.body;
+        const { issueType, customIssue, comments, location, screenshot } = req.body;
 
         if (!comments || !issueType) {
             return res.status(400).json({ message: 'issueType and comments are required' });
@@ -140,16 +127,44 @@ app.post('/api/feedback', async (req, res, next) => {
             return res.status(400).json({ message: 'customIssue is required when issueType is Other' });
         }
 
-        const feedback = new Feedback({
-            issueType,
-            customIssue,
-            comments,
-            location,
-            screenshot,
-        });
-
+        const feedback = new Feedback({ issueType, customIssue, comments, location, screenshot });
         const savedFeedback = await feedback.save();
         res.status(201).json({ message: 'Feedback submitted successfully', data: savedFeedback });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// GET /api/privacy-settings/:userId
+app.get('/api/privacy-settings/:userId', async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        let settings = await PrivacySettings.findOne({ userId });
+
+        if (!settings) {
+            settings = new PrivacySettings({ userId });
+            await settings.save();
+        }
+
+        res.json(settings);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// PUT /api/privacy-settings/:userId
+app.put('/api/privacy-settings/:userId', async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const { backgroundMonitoring, shareAnonymousData, saveLocationHistory } = req.body;
+
+        const updated = await PrivacySettings.findOneAndUpdate(
+            { userId },
+            { backgroundMonitoring, shareAnonymousData, saveLocationHistory },
+            { new: true, upsert: true }
+        );
+
+        res.json(updated);
     } catch (error) {
         next(error);
     }
